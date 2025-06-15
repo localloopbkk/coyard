@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Localloopbkk</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=LINE+Seed+Sans+Thai:wght@300;400;500;700&display=swap");
+    html,body{margin:0;height:100%;overflow:hidden;background:#efdab8;font-family:'LINE Seed Sans Thai',sans-serif;}
+    #sidebar{position:fixed;top:10px;left:10px;z-index:9500;display:flex;flex-direction:column;gap:6px;max-height:90vh;overflow:auto;}
+        body::after{content:'';position:fixed;left:0;right:0;bottom:0;height:180px;background:url("images/clouds.png") center bottom/cover no-repeat;z-index:9000;pointer-events:none;}
+
+    .model-btn,.ctrl-btn{padding:6px 12px;border:none;border-radius:6px;background:darkseagreen;color:#fff;cursor:pointer;font-size:14px;min-width:150px;text-align:left;}
+    .model-btn.active{background:seagreen;}
+    .ctrl-btn{background:slateblue;}
+    #container{width:100vw;height:100vh;}
+    			#mainLogo{
+    position:fixed;
+    top:16px;          /* ระยะจากมุม */
+    right:24px;
+    width:220px;       /* ปรับตามขนาดไฟล์ */
+    z-index:9999;
+    pointer-events:none;   /* ไม่บังการคลิก */
+
+    body::before{
+  content:"";
+  position:fixed;      /* ติดกับ viewport */
+  inset:0;             /* top:0; right:0; bottom:0; left:0 */
+  background:url("images/bg_flower.jpg") center/cover no-repeat;
+  z-index:-1;          /* อยู่หลังทุกอย่าง */
+  opacity:0.8;         /* ปรับโปร่งใส 0-1 ถ้าต้องการ */
+  pointer-events:none; /* ไม่บังการคลิก */
+}
+
+  </style>
+</head>
+<body>
+  	<img id="mainLogo" src="images/logo.png" alt="LocalLoop BKK">
+    
+  <div id="sidebar">
+    <button class="ctrl-btn" id="btn_undo">⟲ Undo</button>
+    <button class="ctrl-btn" id="btn_submit">✔ Submit</button>
+    <button class="ctrl-btn" id="btn_snap">📷 Snapshot</button>
+    <button class="model-btn" id="btn_Tree01">Tree01 (0)</button>
+    <button class="model-btn" id="btn_Tree02">Tree02 (0)</button>
+    <button class="model-btn" id="btn_Shrub">Shrub (0)</button>
+    <button class="model-btn" id="btn_Flower">Flower (0)</button>
+    <button class="model-btn" id="btn_Flower_Rose">Flower_Rose (0)</button>
+    <button class="model-btn" id="btn_Fountain">Fountain (0)</button>
+    <button class="model-btn" id="btn_Pond">Pond (0)</button>
+    <button class="model-btn" id="btn_Path_Wood">Path_Wood (0)</button>
+    <button class="model-btn" id="btn_Path_concrete">Path_concrete (0)</button>
+    <button class="model-btn" id="btn_Playground">Playground (0)</button>
+    <button class="model-btn" id="btn_Seat">Seat (0)</button>
+    <button class="model-btn" id="btn_Multipurpose">Multipurpose (0)</button>
+    <button class="model-btn" id="btn_Lighting">Lighting (0)</button>
+    <button class="model-btn" id="btn_Fence">Fence (0)</button>
+  </div>
+  <div id="container"></div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.119.1/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.119.1/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader } from 'https://unpkg.com/three@0.119.1/examples/jsm/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'https://unpkg.com/three@0.119.1/examples/jsm/loaders/DRACOLoader.js';
+
+    // Scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 1, 10000);
+    camera.position.set(1000,1000,1000); camera.up.set(0,0,1);
+
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.setPixelRatio(devicePixelRatio);
+    document.getElementById('container').appendChild(renderer.domElement);
+    scene.background = new THREE.Color(0xefdab8);
+
+    const gridSize=20, boxSize=100, half=boxSize/2;
+    const grid = new THREE.GridHelper(gridSize*boxSize, gridSize, 0xffffff, 0xffffff);
+    grid.rotation.x = Math.PI/2;
+    scene.add(grid);
+
+// --- SITE --------------------------------------------------------------
+const dracoSite = new DRACOLoader();
+dracoSite.setDecoderPath(
+  'https://unpkg.com/three@0.119.1/examples/js/libs/draco/gltf/'
+);
+const siteLoader = new GLTFLoader();
+siteLoader.setDRACOLoader(dracoSite);
+
+siteLoader.load('MODEL/SITE.glb', gltf => {
+
+  const model = gltf.scene;
+  scene.add(model);
+
+  /* 1. หมุน Y-up ➜ Z-up */
+  model.rotation.x = Math.PI / 2;
+
+  /* 2. scale + จัดศูนย์กลาง (X,Y) */
+  const box   = new THREE.Box3().setFromObject(model);
+  const size  = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+
+  const gridWidth = gridSize * boxSize;      // 20 × 100 = 2000
+  const scale     = gridWidth / Math.max(size.x, size.y);
+  model.scale.setScalar(scale);
+
+  // set XY ตรงกลาง – Z ใส่ 0 ไว้ก่อน
+  model.position.set(-center.x * scale, -center.y * scale, 0);
+
+  /* 3. คำนวณกรอบ “หลัง” scale + position แล้ว */
+  const newBox = new THREE.Box3().setFromObject(model);
+
+  /* 4. ดันให้ฐานแตะพื้น แล้วกดลงต่อ 50 หน่วย (แก้เลขได้) */
+  model.position.z -= newBox.min.z;   // ฐาน = 0
+  model.position.z -= 500;             // ↓ ลงอีก 50
+
+  /* 5. (ไม่บังคับ) เปิดเงา */
+  model.traverse(n=>{
+    if(n.isMesh){ n.castShadow = n.receiveShadow = true; }
+  });
+
+}, undefined, err => console.error(err));
+// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+
+    const ground = new THREE.Mesh(new THREE.PlaneBufferGeometry(gridSize*boxSize,gridSize*boxSize),
+                                  new THREE.MeshBasicMaterial({visible:false}));
+    scene.add(ground);
+
+    scene.add(new THREE.HemisphereLight(0xffffff,0xffffff,1));
+    new OrbitControls(camera, renderer.domElement);
+
+    // Loaders & templates
+    const loader=new GLTFLoader();
+    const templates={};
+    loader.load('MODEL/Tree01.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Tree01'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Tree02.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Tree02'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Shrub.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Shrub'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Flower.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Flower'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Flower_Rose.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Flower_Rose'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Fountain.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Fountain'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Pond.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Pond'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Path_Wood.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Path_Wood'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Path_concrete.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Path_concrete'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Playground.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Playground'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Seat.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Seat'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Multipurpose.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Multipurpose'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Lighting.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Lighting'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+    loader.load('MODEL/Fence.glb', g => {
+      g.scene.rotation.x = Math.PI / 2;
+      templates['Fence'] = g.scene;
+      g.scene.traverse(n => { if(n.isMesh){ n.castShadow = n.receiveShadow = true; } });
+    });
+
+    // Scale factors
+    const SCALE = {
+      Tree01:1, Tree02:100, Shrub:30, Flower:20, Flower_Rose:50,
+      Fountain:100, Pond:100, Path_Wood:200, Path_concrete:50,
+      Playground:2, Seat:200, Multipurpose:400, Lighting:100, Fence:100
+    };
+
+    // UI & counters
+    const counts={}; const buttons={}; let activeKey=null;
+    const modelNames=['Tree01', 'Tree02', 'Shrub', 'Flower', 'Flower_Rose', 'Fountain', 'Pond', 'Path_Wood', 'Path_concrete', 'Playground', 'Seat', 'Multipurpose', 'Lighting', 'Fence'];
+    modelNames.forEach(n=>{counts[n]=0;buttons[n]=document.getElementById('btn_'+n);buttons[n].addEventListener('click',()=>selectModel(n));});
+
+    function selectModel(name){ if(!templates[name]){alert(name+' not loaded');return;} activeKey=name;Object.values(buttons).forEach(b=>b.classList.remove('active'));buttons[name].classList.add('active'); }
+
+    // ctrl buttons
+    const placedStack=[];
+    document.getElementById('btn_undo').addEventListener('click',()=>{ if(!placedStack.length)return; const obj=placedStack.pop(); const type=obj.userData.type; scene.remove(obj); counts[type]--; buttons[type].textContent=`${type} (${counts[type]})`; });
+    document.getElementById('btn_submit').addEventListener('click',()=>{ alert('Submitted!'); });
+    document.getElementById('btn_snap').addEventListener('click',()=>{ renderer.render(scene,camera); const link=document.createElement('a'); link.download='scene.png'; link.href=renderer.domElement.toDataURL('image/png'); link.click(); });
+
+    // placement
+    const ray=new THREE.Raycaster(); const mouse=new THREE.Vector2();
+    renderer.domElement.addEventListener('dblclick',e=>{ if(!activeKey) return; mouse.x=(e.clientX/innerWidth)*2-1; mouse.y=-(e.clientY/innerHeight)*2+1; ray.setFromCamera(mouse,camera); const hit=ray.intersectObject(ground)[0]; if(!hit) return; const p=hit.point; const sx=Math.round(p.x/boxSize)*boxSize+half; const sy=Math.round(p.y/boxSize)*boxSize+half; const id=`cell_${sx}_${sy}`; if(scene.getObjectByName(id)) return; const model=templates[activeKey].clone(); model.scale.multiplyScalar(SCALE[activeKey]??1); const bb=new THREE.Box3().setFromObject(model); model.position.set(sx,sy,-bb.min.z); model.name=id; model.userData.type=activeKey; scene.add(model); placedStack.push(model); counts[activeKey]++; buttons[activeKey].textContent=`${activeKey} (${counts[activeKey]})`; });
+
+    // resize
+    window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+    // loop
+    (function animate(){requestAnimationFrame(animate); renderer.render(scene,camera); })();
+  </script>
+</body>
+</html>
